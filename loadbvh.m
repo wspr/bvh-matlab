@@ -175,16 +175,15 @@ for nn = find([skeleton.parent] ~= 0 & [skeleton.Nchannels] ~= 0)
 
 end
 
+% For an end effector we don't have rotation data;
+% just need to calculate the final position.
 for nn = find([skeleton.Nchannels] == 0)
   
   parent = skeleton(nn).parent;
   
   for ff = 1:Nframes
-    
-    transM = transformation_matrix( skeleton(nn).offset , [0; 0; 0] , 'ABC' );
-    transM = skeleton(parent).trans(:,:,ff) * transM;
+    transM = skeleton(parent).trans(:,:,ff) * [eye(3), skeleton(nn).offset; 0 0 0 1];
     skeleton(nn).Dxyz(:,ff) = transM([1 2 3],4);
-    
   end
 
 end
