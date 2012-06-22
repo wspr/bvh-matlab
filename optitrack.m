@@ -4,22 +4,23 @@
 % its contents needs additional processing to draw the wireframe and create
 % the animation.
 
-skeleton = loadbvh('louise');
+name = 'louise';
+[skeleton,time] = loadbvh(name);
 
 video = false;
 
 % Prepare the new video file.
 if video
-  vidObj = VideoWriter('louise');
+  vidObj = VideoWriter(name);
   open(vidObj);
 end
 
 fincr = 5;
 
 ccaxis = [0 0 0 0 0 0];
-for ff = 500:fincr:1400
+for ff = 1:fincr:length(time)
   h = figure(1); clf; hold on
-  title(num2str(ff))
+  title([num2str(time(ff)),' seconds'])
   set(h,'color','white')
   
 % From the BVH model exported by arena, it's clear that "y" is vertical
@@ -45,7 +46,8 @@ for ff = 500:fincr:1400
   end
   
   view(-30,30)
-  axis([-100 200 0 200 -50 200])
+  axis equal
+%  axis([-100 200 0 200 -50 200])
   
   drawnow
   

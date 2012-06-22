@@ -1,4 +1,4 @@
-function skeleton = loadbvh(name)
+function [skeleton,time] = loadbvh(fname)
 %% LOADBVH  Load a .bvh file.
 
 fname = [name,'.bvh'];
@@ -87,7 +87,9 @@ index = strncmp(rawdata.textdata,'Frames:',7);
 Nframes = sscanf(rawdata.textdata{index},'Frames: %f');
 
 index = strncmp(rawdata.textdata,'Frame Time:',10);
-frame_time = sscanf(rawdata.textdata{index},'Frame time: %f');
+frame_time = sscanf(rawdata.textdata{index},'Frame Time: %f');
+
+time = frame_time*(0:Nframes-1);
 
 if size(rawdata.data,2) ~= Nchannels
   error('Error reading BVH file: channels count does not match.')
