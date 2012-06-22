@@ -7,6 +7,8 @@
 name = 'louise';
 [skeleton,time] = loadbvh(name);
 
+%%
+
 video = false;
 
 % Prepare the new video file.

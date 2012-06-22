@@ -1,15 +1,31 @@
 function [skeleton,time] = loadbvh(fname)
-%% LOADBVH  Load a .bvh file.
+%% LOADBVH  Load a .bvh (Biovision) file.
+%
+% Loads BVH file specified by FNAME (with or without .bvh extension)
+% and parses the file, calculating joint kinematics and storing the
+% output in SKELETON.
 
-fname = [name,'.bvh'];
+%% Load and parse header data
+%
+% The file is opened for reading, primarily to extract the header data (see
+% next section). However, I don't know how to ask Matlab to read only up
+% until the line "MOTION", so we're being a bit inefficient here and
+% loading the entire file into memory. Oh well.
 
-%% Load and parse data
+if ~strncmpi(fliplr(fname),'hvb.',4)
+  fname = [fname,'.bvh'];
+end
 
-% File access:
 fid = fopen(fname);
 C = textscan(fid,'%s');
 fclose(fid);
 C = C{1};
+
+
+%% Parse data
+%
+% This is a cheap tokeniser, not particularly clever.
+% Iterate word-by-word, counting braces and extracting data.
 
 % Initialise:
 skeleton = [];
@@ -17,23 +33,51 @@ ii = 1;
 nn = 0;
 brace_count = 1;
 
-% Parse:
 while ~strcmp( C(ii) , 'MOTION' )
   
   ii = ii+1;
+  token = C{ii};
   
-  if strcmp( C(ii) , '{' )
+  if strcmp( token , '{' )
+    
     brace_count = brace_count + 1;
-  elseif strcmp( C(ii) , '}' )
+    
+  elseif strcmp( token , '}' )
+    
     brace_count = brace_count - 1;
-  elseif strcmp( C(ii) , 'JOINT' ) || strcmp( C(ii) , 'ROOT' )
+    
+  elseif strcmp( token , 'OFFSET' )
+    
+    skeleton(nn).offset = [str2double(C(ii+1)) ; str2double(C(ii+2)) ; str2double(C(ii+3))];
+    ii = ii+3;
+    
+  elseif strcmp( token , 'CHANNELS' )
+    
+    skeleton(nn).Nchannels = str2double(C(ii+1));
+    
+    % What is the order of the rotations?
+    if skeleton(nn).Nchannels == 3
+      skeleton(nn).order = [C{ii+2}(1),C{ii+3}(1),C{ii+4}(1)];
+    elseif skeleton(nn).Nchannels == 6
+      skeleton(nn).order = [C{ii+5}(1),C{ii+6}(1),C{ii+7}(1)];
+    else
+      error('Not sure how to handle not (3 or 6) number of channels.')
+    end
+    
+    % The 'norder' field is an index corresponding to the order of 'X' 'Y' 'Z'.
+    for rr = 1:3
+      % "X" == 88, "Y" == 89, "Z" == 90 
+      skeleton(nn).norder(rr) = skeleton(nn).order(rr)-87;
+    end
+    
+    ii = ii + skeleton(nn).Nchannels + 1;
+
+  elseif strcmp( token , 'JOINT' ) || strcmp( token , 'ROOT' )
     % Regular joint
     
     nn = nn+1;
     
     skeleton(nn).name = C(ii+1);
-    skeleton(nn).offset = [str2double(C(ii+4)) ; str2double(C(ii+5)) ; str2double(C(ii+6))];
-    skeleton(nn).Nchannels = str2double(C(ii+8));
     skeleton(nn).nestdepth = brace_count;
 
     if brace_count == 1
@@ -47,15 +91,13 @@ while ~strcmp( C(ii) , 'MOTION' )
       skeleton(nn).parent = skeleton(brace_count).parent;
     end
     
-    % What is the order of the rotations?
-    if skeleton(nn).Nchannels == 3
-      skeleton(nn).order = [C{ii+9}(1),C{ii+10}(1),C{ii+11}(1)];
-    elseif skeleton(nn).Nchannels == 6
-      skeleton(nn).order = [C{ii+12}(1),C{ii+13}(1),C{ii+14}(1)];
-    end
-        
+    ii = ii+1;
+            
   elseif strcmp( [C{ii},' ',C{ii+1}] , 'End Site' )
     % End effector; unnamed terminating joint
+    %
+    % N.B. The "two word" token here is why we don't use a switch statement
+    % for this code.
     
     nn = nn+1;
     
@@ -99,9 +141,7 @@ if size(rawdata.data,1) ~= Nframes
   warning('LOADBVH:frames_wrong','Error reading BVH file: frames count does not match; continuing anyway.')
 end
 
-%% Load data into skeleton structure
-%
-% Assume for now that all rotations are in the order ZXY
+%% Load motion data into skeleton structure
 
 channel_count = 0;
 
@@ -114,16 +154,10 @@ for nn = 1:Nnodes
     
     skeleton(nn).rot = nan(3,Nframes);
     for ii = 1:length(skeleton(nn).order)
-      switch skeleton(nn).order(ii)
-        case 'X'
-          skeleton(nn).rot(1,:) = rawdata.data(:,channel_count+3+ii)';
-        case 'Y'
-          skeleton(nn).rot(2,:) = rawdata.data(:,channel_count+3+ii)';
-        case 'Z'
-          skeleton(nn).rot(3,:) = rawdata.data(:,channel_count+3+ii)';
-      end
+      rr = skeleton(nn).norder(ii);
+      skeleton(nn).rot(rr,:) = rawdata.data(:,channel_count+3+ii)';
     end
-    
+        
     % Kinematics of the root element:
     skeleton(nn).trans = nan(4,4,Nframes);
     for ff = 1:Nframes
@@ -134,14 +168,8 @@ for nn = 1:Nnodes
         
     skeleton(nn).rot = nan(3,Nframes);
     for ii = 1:length(skeleton(nn).order)
-      switch skeleton(nn).order(ii)
-        case 'X'
-          skeleton(nn).rot(1,:) = rawdata.data(:,channel_count+ii)';
-        case 'Y'
-          skeleton(nn).rot(2,:) = rawdata.data(:,channel_count+ii)';
-        case 'Z'
-          skeleton(nn).rot(3,:) = rawdata.data(:,channel_count+ii)';
-      end
+      rr = skeleton(nn).norder(ii);
+      skeleton(nn).rot(rr,:) = rawdata.data(:,channel_count+ii)';
     end
     
     skeleton(nn).Dxyz  = nan(3,Nframes);
@@ -151,16 +179,17 @@ for nn = 1:Nnodes
     
     skeleton(nn).Dxyz  = nan(3,Nframes);
     
-  else
-    error('Not sure how to handle not (0 or 3 or 6) number of channels.')
   end
   
   channel_count = channel_count + skeleton(nn).Nchannels;
   
 end
 
+
 %% Calculate kinematics
 
+% For each joint, calculate the transformation matrix and for convenience
+% extract each position in a separate vector.
 for nn = find([skeleton.parent] ~= 0 & [skeleton.Nchannels] ~= 0)
   
   parent = skeleton(nn).parent;
@@ -193,6 +222,7 @@ end
 
 
 function transM = transformation_matrix(displ,rxyz,order)
+% Standard stuff.
 
 cx = cosd(rxyz(1));
 cy = cosd(rxyz(2));
@@ -216,4 +246,3 @@ end
 transM = [rotM, displ; 0 0 0 1];
 
 end
-
