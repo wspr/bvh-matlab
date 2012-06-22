@@ -1,67 +1,8 @@
 %% Taking data from Arena
 %
-% Exporting in two formats: C3D and BVH.
-%
-% C3D is a binary format and we use the external function "loadc3d" (open
-% source) to extract the information. This gives us marker points only.
-%
 % BVH is a text file which contains skeletal data calculated by Arena, but
 % its contents needs additional processing to draw the wireframe and create
 % the animation.
-
-%% C3D example
-%
-% The wireframe is approximate and may potentially change with different takes.
-
-fname = 'louise';
-
-c3ddata = loadc3d([fname,'.c3d']);
-Nmarkers = size(c3ddata,2);
-
-connect_points = { ...
-  [14 15 16 14] , ... left hand
-  [20 21 22 20] , ... right hand
-  [8 9 10 8] , [5 9 10 5] , ... "head"
-  [1 2 3 1] , ... waist
-  [1 6 7 1] , [5 6 7 5] , ...   torso
-  [3 7] , [2 6] , [13 19 2 3 13] , ... more torso
-  [22 17 18 19 5 13 12 11 15] , ... join arms
-  [29 30 32 29] , ... right leg
-  [23 24 26 23] , ...   left leg
-  [30 2 29 30] , [3 23 24 3] , ... more legs
-  [31 33 34 31] , ... right foot
-  [27 28 25 27] ,  ... left foot
-  [31 32] , [25 26] ... join feet
-  };
-Nconnect = length(connect_points);
-
-Nframes = size(c3ddata,1);
-
-% every tenth point only for the animation:
-for tt = 500:10:1200
-  
-  figure(1); clf; hold on
-  view(-23,18)
-  axis([-1000 1000 -500 1000 0 1500])
-  
-  % plot each individual marker with a label
-  for mm = 1:Nmarkers
-    plot3(c3ddata(tt,mm,1),c3ddata(tt,mm,2),c3ddata(tt,mm,3),'o')
-    text(c3ddata(tt,mm,1),c3ddata(tt,mm,2),c3ddata(tt,mm,3),['   ',num2str(mm)])
-  end
-  
-  % plot the "body segments", but really need a skeletal model
-  for ff = 1:Nconnect
-    plot3(c3ddata(tt,connect_points{ff},1),c3ddata(tt,connect_points{ff},2),c3ddata(tt,connect_points{ff},3))
-  end
-  
-  
-end
-
-%% BVH example
-
-
-%% Plot
 
 skeleton = loadbvh('louise');
 
@@ -101,15 +42,6 @@ for ff = 500:fincr:1400
             [skeleton(parent).Dxyz(3,ff) skeleton(nn).Dxyz(3,ff)],...
             [skeleton(parent).Dxyz(2,ff) skeleton(nn).Dxyz(2,ff)])
     end
-  end
-  
-  % plot c3D markers as well:
-  mrange = 1:Nmarkers;
-  mrange([4 35 36]) = [];
-  
-  for mm = mrange
-    plot3(-c3ddata(ff,mm,1)/10,c3ddata(ff,mm,2)/10,c3ddata(ff,mm,3)/10,'o','color','red')
-    % text(-c3ddata(ff,mm,1)/10,c3ddata(ff,mm,2)/10,c3ddata(ff,mm,3)/10,num2str(mm))
   end
   
   view(-30,30)
