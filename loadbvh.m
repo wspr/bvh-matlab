@@ -142,18 +142,32 @@ if size(rawdata.data,1) ~= Nframes
 end
 
 %% Load motion data into skeleton structure
+%
+% We have three possibilities for each node we come across:
+% (a) a root node that has displacements already defined,
+%     for which the transformation matrix can be directly calculated;
+% (b) a joint node, for which the transformation matrix must be calculated
+%     from the previous points in the chain; and
+% (c) an end effector, which only has displacement to calculate from the
+%     previous node's transformation matrix and the offset of the end
+%     joint.
+%
+% These are indicated in the skeleton structure, respectively, by having
+% six, three, and zero "channels" of data.
+% In this section of the code, the channels are read in where appropriate
+% and the relevant arrays are pre-initialised for the subsequent calcs.
 
 channel_count = 0;
 
 for nn = 1:Nnodes
     
-  if skeleton(nn).Nchannels == 6
+  if skeleton(nn).Nchannels == 6 % root node
     
     % assume translational data is always ordered XYZ
     skeleton(nn).Dxyz = repmat(skeleton(nn).offset,[1 Nframes]) + rawdata.data(:,channel_count+[1 2 3])';
     
     skeleton(nn).rot = nan(3,Nframes);
-    for ii = 1:length(skeleton(nn).order)
+    for ii = 1:3
       rr = skeleton(nn).norder(ii);
       skeleton(nn).rot(rr,:) = rawdata.data(:,channel_count+3+ii)';
     end
@@ -164,10 +178,10 @@ for nn = 1:Nnodes
       skeleton(nn).trans(:,:,ff) = transformation_matrix(skeleton(nn).Dxyz(:,ff) , skeleton(nn).rot(:,ff) , skeleton(nn).order);
     end
     
-  elseif skeleton(nn).Nchannels == 3
+  elseif skeleton(nn).Nchannels == 3 % joint node
         
     skeleton(nn).rot = nan(3,Nframes);
-    for ii = 1:length(skeleton(nn).order)
+    for ii = 1:3
       rr = skeleton(nn).norder(ii);
       skeleton(nn).rot(rr,:) = rawdata.data(:,channel_count+ii)';
     end
@@ -175,7 +189,7 @@ for nn = 1:Nnodes
     skeleton(nn).Dxyz  = nan(3,Nframes);
     skeleton(nn).trans = nan(4,4,Nframes);
     
-  elseif skeleton(nn).Nchannels == 0
+  elseif skeleton(nn).Nchannels == 0 % end node
     
     skeleton(nn).Dxyz  = nan(3,Nframes);
     
@@ -187,6 +201,8 @@ end
 
 
 %% Calculate kinematics
+%
+% No calculations are required for the root nodes.
 
 % For each joint, calculate the transformation matrix and for convenience
 % extract each position in a separate vector.
@@ -222,7 +238,23 @@ end
 
 
 function transM = transformation_matrix(displ,rxyz,order)
-% Standard stuff.
+% Constructs the transformation for given displacement, DISPL, and
+% rotations RXYZ. The vector RYXZ is of length three corresponding to
+% rotations around the X, Y, Z axes.
+%
+% The third input, ORDER, is a string indicating which planar rotations
+% to apply and in which order. E.g.,
+%
+%  - 'ZXY' refers applying rotations RXYZ around Z first, then X, then Y.
+%  - 'XY' would apply only rotations around X then Y.
+%  - 'XX' would apply the rotation around the x-axis twice,
+%    but I don't know why you'd want to do that.
+%
+% Years ago we benchmarked that multiplying the separate rotation matrices
+% was more efficient than pre-calculating the final rotation matrix
+% symbolically, so we don't "optimise" by having a hard-coded rotation
+% matrix for, say, 'ZXY' which seems more common in BVH files.
+% Should revisit this assumption one day.
 
 cx = cosd(rxyz(1));
 cy = cosd(rxyz(2));
