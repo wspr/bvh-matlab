@@ -218,18 +218,14 @@ end
 
 
 
-function transM = transformation_matrix(displ,rxyz,norder)
+function transM = transformation_matrix(displ,rxyz,order)
 % Constructs the transformation for given displacement, DISPL, and
 % rotations RXYZ. The vector RYXZ is of length three corresponding to
 % rotations around the X, Y, Z axes.
 %
-% The third input, ORDER, is a string indicating which planar rotations
-% to apply and in which order. E.g.,
-%
-%  - 'ZXY' refers applying rotations RXYZ around Z first, then X, then Y.
-%  - 'XY' would apply only rotations around X then Y.
-%  - 'XX' would apply the rotation around the x-axis twice,
-%    but I don't know why you'd want to do that.
+% The third input, ORDER, is a vector indicating which order to apply
+% the planar rotations. E.g., [3 1 2] refers applying rotations RXYZ
+% around Z first, then X, then Y.
 %
 % Years ago we benchmarked that multiplying the separate rotation matrices
 % was more efficient than pre-calculating the final rotation matrix
@@ -248,7 +244,7 @@ RxRyRz(:,:,1) = [1 0 0; 0 cx -sx; 0 sx cx];
 RxRyRz(:,:,2) = [cy 0 sy; 0 1 0; -sy 0 cy];
 RxRyRz(:,:,3) = [cz -sz 0; sz cz 0; 0 0 1];
 
-rotM = RxRyRz(:,:,norder(1))*RxRyRz(:,:,norder(2))*RxRyRz(:,:,norder(3));
+rotM = RxRyRz(:,:,order(1))*RxRyRz(:,:,order(2))*RxRyRz(:,:,order(3));
 
 transM = [rotM, displ; 0 0 0 1];
 
