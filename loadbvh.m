@@ -33,7 +33,7 @@ ii = 1;
 nn = 0;
 brace_count = 1;
 
-while ~strcmp( C(ii) , 'MOTION' )
+while ~strcmp( C{ii} , 'MOTION' )
   
   ii = ii+1;
   token = C{ii};
@@ -55,19 +55,14 @@ while ~strcmp( C(ii) , 'MOTION' )
     
     skeleton(nn).Nchannels = str2double(C(ii+1));
     
-    % What is the order of the rotations?
+    % The 'order' field is an index corresponding to the order of 'X' 'Y' 'Z'.
+    % Subtract 87 because char numbers "X" == 88, "Y" == 89, "Z" == 90.
     if skeleton(nn).Nchannels == 3
-      skeleton(nn).order = [C{ii+2}(1),C{ii+3}(1),C{ii+4}(1)];
+      skeleton(nn).order = [C{ii+2}(1),C{ii+3}(1),C{ii+4}(1)]-87;
     elseif skeleton(nn).Nchannels == 6
-      skeleton(nn).order = [C{ii+5}(1),C{ii+6}(1),C{ii+7}(1)];
+      skeleton(nn).order = [C{ii+5}(1),C{ii+6}(1),C{ii+7}(1)]-87;
     else
       error('Not sure how to handle not (3 or 6) number of channels.')
-    end
-    
-    % The 'norder' field is an index corresponding to the order of 'X' 'Y' 'Z'.
-    for rr = 1:3
-      % "X" == 88, "Y" == 89, "Z" == 90 
-      skeleton(nn).norder(rr) = skeleton(nn).order(rr)-87;
     end
     
     ii = ii + skeleton(nn).Nchannels + 1;
@@ -77,7 +72,7 @@ while ~strcmp( C(ii) , 'MOTION' )
     
     nn = nn+1;
     
-    skeleton(nn).name = C(ii+1);
+    skeleton(nn).name = C{ii+1};
     skeleton(nn).nestdepth = brace_count;
 
     if brace_count == 1
@@ -165,34 +160,22 @@ for nn = 1:Nnodes
     
     % assume translational data is always ordered XYZ
     skeleton(nn).Dxyz = repmat(skeleton(nn).offset,[1 Nframes]) + rawdata.data(:,channel_count+[1 2 3])';
-    
-    skeleton(nn).rot = nan(3,Nframes);
-    for ii = 1:3
-      rr = skeleton(nn).norder(ii);
-      skeleton(nn).rot(rr,:) = rawdata.data(:,channel_count+3+ii)';
-    end
+    skeleton(nn).rxyz(skeleton(nn).order,:) = rawdata.data(:,channel_count+[4 5 6])';
         
     % Kinematics of the root element:
     skeleton(nn).trans = nan(4,4,Nframes);
     for ff = 1:Nframes
-      skeleton(nn).trans(:,:,ff) = transformation_matrix(skeleton(nn).Dxyz(:,ff) , skeleton(nn).rot(:,ff) , skeleton(nn).order);
+      skeleton(nn).trans(:,:,ff) = transformation_matrix(skeleton(nn).Dxyz(:,ff) , skeleton(nn).rxyz(:,ff) , skeleton(nn).order);
     end
     
   elseif skeleton(nn).Nchannels == 3 % joint node
         
-    skeleton(nn).rot = nan(3,Nframes);
-    for ii = 1:3
-      rr = skeleton(nn).norder(ii);
-      skeleton(nn).rot(rr,:) = rawdata.data(:,channel_count+ii)';
-    end
-    
+    skeleton(nn).rxyz(skeleton(nn).order,:) = rawdata.data(:,channel_count+[1 2 3])';
     skeleton(nn).Dxyz  = nan(3,Nframes);
     skeleton(nn).trans = nan(4,4,Nframes);
     
   elseif skeleton(nn).Nchannels == 0 % end node
-    
     skeleton(nn).Dxyz  = nan(3,Nframes);
-    
   end
   
   channel_count = channel_count + skeleton(nn).Nchannels;
@@ -211,11 +194,9 @@ for nn = find([skeleton.parent] ~= 0 & [skeleton.Nchannels] ~= 0)
   parent = skeleton(nn).parent;
   
   for ff = 1:Nframes
-    
-    transM = transformation_matrix( skeleton(nn).offset , skeleton(nn).rot(:,ff) , skeleton(nn).order );
+    transM = transformation_matrix( skeleton(nn).offset , skeleton(nn).rxyz(:,ff) , skeleton(nn).order );
     skeleton(nn).trans(:,:,ff) = skeleton(parent).trans(:,:,ff) * transM;
     skeleton(nn).Dxyz(:,ff) = skeleton(nn).trans([1 2 3],4,ff);
-    
   end
 
 end
@@ -237,7 +218,7 @@ end
 
 
 
-function transM = transformation_matrix(displ,rxyz,order)
+function transM = transformation_matrix(displ,rxyz,norder)
 % Constructs the transformation for given displacement, DISPL, and
 % rotations RXYZ. The vector RYXZ is of length three corresponding to
 % rotations around the X, Y, Z axes.
@@ -263,17 +244,11 @@ sx = sind(rxyz(1));
 sy = sind(rxyz(2));
 sz = sind(rxyz(3));
 
-rotM = eye(3);
-for ii = 1:length(order)
-  switch order(ii)
-    case 'X'
-      rotM = rotM*[1 0 0; 0 cx -sx; 0 sx cx];
-    case 'Y'
-      rotM = rotM*[cy 0 sy; 0 1 0; -sy 0 cy];
-    case 'Z'
-      rotM = rotM*[cz -sz 0; sz cz 0; 0 0 1];
-  end
-end
+RxRyRz(:,:,1) = [1 0 0; 0 cx -sx; 0 sx cx];
+RxRyRz(:,:,2) = [cy 0 sy; 0 1 0; -sy 0 cy];
+RxRyRz(:,:,3) = [cz -sz 0; sz cz 0; 0 0 1];
+
+rotM = RxRyRz(:,:,norder(1))*RxRyRz(:,:,norder(2))*RxRyRz(:,:,norder(3));
 
 transM = [rotM, displ; 0 0 0 1];
 
