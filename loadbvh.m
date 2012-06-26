@@ -12,6 +12,7 @@ function [skeleton,time] = loadbvh(fname)
 % until the line "MOTION", so we're being a bit inefficient here and
 % loading the entire file into memory. Oh well.
 
+% add a file extension if necessary:
 if ~strncmpi(fliplr(fname),'hvb.',4)
   fname = [fname,'.bvh'];
 end
@@ -232,17 +233,15 @@ function transM = transformation_matrix(displ,rxyz,order)
 % symbolically, so we don't "optimise" by having a hard-coded rotation
 % matrix for, say, 'ZXY' which seems more common in BVH files.
 % Should revisit this assumption one day.
+%
+% Precalculating the cosines and sines saves around 38% in execution time.
 
-cx = cosd(rxyz(1));
-cy = cosd(rxyz(2));
-cz = cosd(rxyz(3));
-sx = sind(rxyz(1));
-sy = sind(rxyz(2));
-sz = sind(rxyz(3));
+c = cosd(rxyz);
+s = sind(rxyz);
 
-RxRyRz(:,:,1) = [1 0 0; 0 cx -sx; 0 sx cx];
-RxRyRz(:,:,2) = [cy 0 sy; 0 1 0; -sy 0 cy];
-RxRyRz(:,:,3) = [cz -sz 0; sz cz 0; 0 0 1];
+RxRyRz(:,:,1) = [1 0 0; 0 c(1) -s(1); 0 s(1) c(1)];
+RxRyRz(:,:,2) = [c(2) 0 s(2); 0 1 0; -s(2) 0 c(2)];
+RxRyRz(:,:,3) = [c(3) -s(3) 0; s(3) c(3) 0; 0 0 1];
 
 rotM = RxRyRz(:,:,order(1))*RxRyRz(:,:,order(2))*RxRyRz(:,:,order(3));
 
