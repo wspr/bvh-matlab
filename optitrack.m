@@ -30,7 +30,7 @@ for ff = 1:fincr:length(time)
 % Therefore, flip Y and Z when plotting to have Matlab's "vertical" z-axis
 % match up.
 
-  for nn = 1:Nnodes
+  for nn = 1:length(skeleton)
     
     if false
       if ~isempty(skeleton(nn).name)
