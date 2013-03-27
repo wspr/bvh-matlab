@@ -92,7 +92,11 @@ while ~strcmp( C{ii} , 'MOTION' )
       skeleton(nn).parent = nn-1;
     else
       % if not, what is the node corresponding to this brace count?
-      skeleton(nn).parent = skeleton(brace_count).parent;
+      prev_parent = skeleton(nn-1).parent;
+      while skeleton(prev_parent).nestdepth+1 ~= brace_count
+        prev_parent = skeleton(prev_parent).parent;
+      end
+      skeleton(nn).parent = prev_parent;
     end
     
     ii = ii+1;
