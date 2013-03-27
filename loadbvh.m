@@ -4,6 +4,10 @@ function [skeleton,time] = loadbvh(fname)
 % Loads BVH file specified by FNAME (with or without .bvh extension)
 % and parses the file, calculating joint kinematics and storing the
 % output in SKELETON.
+%
+% Some details on the BVH file structure are given in "Motion Capture File
+% Formats Explained": http://www.dcs.shef.ac.uk/intranet/research/resmes/CS0111.pdf
+% But most of it is fairly self-evident.
 
 %% Load and parse header data
 %
@@ -66,6 +70,10 @@ while ~strcmp( C{ii} , 'MOTION' )
       error('Not sure how to handle not (3 or 6) number of channels.')
     end
     
+    if ~all(sort(skeleton(nn).order)==[1 2 3])
+      error('Cannot read channels order correctly. Should be some permutation of [''X'' ''Y'' ''Z''].')
+    end
+
     ii = ii + skeleton(nn).Nchannels + 1;
 
   elseif strcmp( token , 'JOINT' ) || strcmp( token , 'ROOT' )
