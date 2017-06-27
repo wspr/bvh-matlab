@@ -147,6 +147,7 @@ end
 
 if size(rawdata.data,1) ~= Nframes
   warning('LOADBVH:frames_wrong','Error reading BVH file: frames count does not match; continuing anyway.')
+  Nframes = size(rawdata.data,1);
 end
 
 %% Load motion data into skeleton structure
