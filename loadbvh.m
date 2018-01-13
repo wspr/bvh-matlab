@@ -1,13 +1,27 @@
-function [skeleton,time] = loadbvh(fname)
+function [skeleton,time] = loadbvh(fname,varargin)
 %% LOADBVH  Load a .bvh (Biovision) file.
 %
 % Loads BVH file specified by FNAME (with or without .bvh extension)
 % and parses the file, calculating joint kinematics and storing the
 % output in SKELETON.
 %
+% Optional argument 'delim' allows for setting the delimiter between
+% fields. E.g., for a tab-separated BVH file:
+%
+%    skeleton = loadbvh('louise.bvh','delim','\t')
+%
+% By default 'delim' is set to the space character.
+%
 % Some details on the BVH file structure are given in "Motion Capture File
 % Formats Explained": http://www.dcs.shef.ac.uk/intranet/research/resmes/CS0111.pdf
 % But most of it is fairly self-evident.
+
+%% Options
+
+p = inputParser;
+p.addParameter('delim',' ');
+parse(p,varargin{:});
+opt = p.Results;
 
 %% Load and parse header data
 %
@@ -131,7 +145,11 @@ Nchainends = sum([skeleton.Nchannels]==0);
 %  - 4 additional lines (first one and last three)
 Nheaderlines = (Nnodes-Nchainends)*5 + Nchainends*4 + 4;
 
-rawdata = importdata(fname,' ',Nheaderlines);
+rawdata = importdata(fname,opt.delim,Nheaderlines);
+
+if ~isstruct(rawdata)
+   error('Could not parse BVH file %s. Check the delimiter.',fname)
+end
 
 index = strncmp(rawdata.textdata,'Frames:',7);
 Nframes = sscanf(rawdata.textdata{index},'Frames: %f');
