@@ -211,6 +211,7 @@ for nn = 1:Nnodes
   end
   
   channel_count = channel_count + skeleton(nn).Nchannels;
+  skeleton(nn).Nframes = Nframes;
   
 end
 
