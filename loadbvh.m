@@ -12,6 +12,21 @@ function [skeleton,time] = loadbvh(fname,varargin)
 %
 % By default 'delim' is set to the space character.
 %
+% SKELETON is a structure with N elements, where N is the number of joints.
+% Each element consists of the following fields:
+%
+%     * `name` -- human-readable description of the joint
+%     * `nestdepth` -- how many joints away from the origin
+%     * `parent` -- index to parent joint
+%     * `offset` -- translation from previous joint to current joint
+%     * `Nchannels` -- number of channels describing pose
+%                      (usually 3 for rotations only or 6 for 6DOF pose)
+%     * `Nframes` -- number of time samples
+%     * `order` -- the Euler angle order; e.g. [3 1 2] = ZXY
+%     * `Dxyz` -- XYZ displacements (directly from `trans` matrix)
+%     * `rxyz` -- XYZ rotations (to calculate `trans` matrix)
+%     * `trans` -- transformation matrix 
+%
 % Some details on the BVH file structure are given in "Motion Capture File
 % Formats Explained": http://www.dcs.shef.ac.uk/intranet/research/resmes/CS0111.pdf
 % But most of it is fairly self-evident.
