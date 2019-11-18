@@ -157,20 +157,42 @@ Nchainends = sum([skeleton.Nchannels]==0);
 % Calculate number of header lines:
 %  - 5 lines per joint
 %  - 4 lines per chain end
-%  - 4 additional lines (first one and last three)
-Nheaderlines = (Nnodes-Nchainends)*5 + Nchainends*4 + 4;
+%  - 2 additional lines ('HIERARCHY' and 'MOTION')
+Nheaderlines = (Nnodes-Nchainends)*5 + Nchainends*4 + 2;
 
+fid = fopen(fname);
+for ii = 1:Nheaderlines
+  tline = fgetl(fid);
+end
+if ~strcmp(tline,'MOTION')
+   error('Could not parse BVH file %s. Number of header lines (before "MOTION" appears incorrect.',fname)
+end
+
+% get next non-blank line
+tline = char([]);
+while isempty(tline)
+  tline = fgetl(fid);
+  Nheaderlines = Nheaderlines + 1;
+end
+Nframes = sscanf(tline,'Frames: %f');
+
+% get next non-blank line
+tline = char([]);
+while isempty(tline)
+  tline = fgetl(fid);
+  Nheaderlines = Nheaderlines + 1;
+end
+frame_time = sscanf(tline,'Frame Time: %f');
+
+first_line = fgetl(fid);
+fclose(fid);
+
+% get the full data array from here:
 rawdata = importdata(fname,opt.delim,Nheaderlines);
 
 if ~isstruct(rawdata)
-   error('Could not parse BVH file %s. Check the delimiter.',fname)
+   error('Could not parse BVH file %s. Check the delimiter. First line of data appears to be:\n\n> %s',fname,first_line)
 end
-
-index = strncmp(rawdata.textdata,'Frames:',7);
-Nframes = sscanf(rawdata.textdata{index},'Frames: %f');
-
-index = strncmp(rawdata.textdata,'Frame Time:',10);
-frame_time = sscanf(rawdata.textdata{index},'Frame Time: %f');
 
 time = frame_time*(0:Nframes-1);
 
