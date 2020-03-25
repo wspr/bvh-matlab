@@ -51,6 +51,9 @@ if ~strncmpi(fliplr(fname),'hvb.',4)
 end
 
 fid = fopen(fname);
+if fid == -1
+  error(['File "',fname,'" not found.'])
+end
 C = textscan(fid,'%s');
 fclose(fid);
 C = C{1};
